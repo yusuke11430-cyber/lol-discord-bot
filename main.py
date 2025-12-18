@@ -8,7 +8,7 @@ WEBHOOK_URL = os.environ["DISCORD_WEBHOOK"]
 
 GAME_NAME = "パクノダ"
 TAG_LINE = "旅団Win"
-REGION = "asia"   # JPは asia
+REGION = "jp1"   # JPは asia
 
 HEADERS = {"X-Riot-Token": RIOT_API_KEY}
 STATE_FILE = "state.json"
