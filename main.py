@@ -3,20 +3,12 @@ import os
 import json
 import time
 
-# =====================
-# 環境変数
-# =====================
 RIOT_API_KEY = os.environ["RIOT_API_KEY"]
 WEBHOOK_URL = os.environ["DISCORD_WEBHOOK"]
 
-# =====================
-# 対象プレイヤー
-# =====================
 GAME_NAME = "パクノダ"
 TAG_LINE = "旅団Win"
-
-# Match / Account 用（日本・韓国は asia）
-REGION = "asia"
+REGION = "asia"   # JP / KR / TW 全部 asia
 
 HEADERS = {"X-Riot-Token": RIOT_API_KEY}
 STATE_FILE = "state.json"
@@ -39,7 +31,7 @@ else:
 
 
 # =====================
-# 1. Riot ID → Account 情報
+# 1. Riot ID → PUUID
 # =====================
 acc = get_json(
     f"https://{REGION}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{GAME_NAME}/{TAG_LINE}"
@@ -47,30 +39,9 @@ acc = get_json(
 
 puuid = acc["puuid"]
 
-# =====================
-# 2. PLATFORM 自動判定（重要）
-# =====================
-ACCOUNT_REGION_TO_PLATFORM = {
-    "JP": "jp1",
-    "KR": "kr",
-    "NA": "na1",
-    "EUW": "euw1",
-    "EUNE": "eun1",
-    "OCE": "oc1",
-}
-
-account_region = acc.get("region")
-PLATFORM = ACCOUNT_REGION_TO_PLATFORM.get(account_region)
-
-if not PLATFORM:
-    print("Unknown account region:", account_region)
-    exit()
-
-print("Detected PLATFORM:", PLATFORM)
-
 
 # =====================
-# 3. 最新試合ID取得
+# 2. 最新試合ID
 # =====================
 match_ids = get_json(
     f"https://{REGION}.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?count=1"
@@ -78,13 +49,12 @@ match_ids = get_json(
 
 latest_match = match_ids[0]
 
-# 既に投稿済みなら終了
 if state.get("last_match_id") == latest_match:
     exit()
 
 
 # =====================
-# 4. 試合詳細
+# 3. 試合詳細
 # =====================
 match = get_json(
     f"https://{REGION}.api.riotgames.com/lol/match/v5/matches/{latest_match}"
@@ -97,30 +67,22 @@ result = "WIN 🟢" if player["win"] else "LOSE 🔴"
 
 
 # =====================
-# 5. Summoner ID 取得
+# 4. summonerId（Match API から直接）
 # =====================
-summoner = get_json(
-    f"https://{PLATFORM}.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{puuid}"
-)
-
-if "id" not in summoner:
-    print("Summoner API error:", summoner)
-    exit()
-
-summoner_id = summoner["id"]
+summoner_id = player["summonerId"]
 
 
 # =====================
-# 6. LP 反映待ち
+# 5. LP反映待ち
 # =====================
 time.sleep(90)
 
 
 # =====================
-# 7. ランク情報取得
+# 6. ランク情報取得
 # =====================
 entries = get_json(
-    f"https://{PLATFORM}.api.riotgames.com/lol/league/v4/entries/by-summoner/{summoner_id}"
+    f"https://jp1.api.riotgames.com/lol/league/v4/entries/by-summoner/{summoner_id}"
 )
 
 rank_entry = next(
@@ -138,7 +100,7 @@ else:
 
 
 # =====================
-# 8. LP 差分計算
+# 7. LP差分
 # =====================
 prev_lp = state.get("last_lp")
 lp_diff = None
@@ -146,14 +108,14 @@ lp_diff = None
 if current_lp is not None and prev_lp is not None:
     lp_diff = current_lp - prev_lp
 
-if lp_diff is None:
-    lp_text = "不明"
-else:
-    lp_text = f'{("+" if lp_diff >= 0 else "")}{lp_diff} LP'
+lp_text = (
+    f'{("+" if lp_diff >= 0 else "")}{lp_diff} LP'
+    if lp_diff is not None else "不明"
+)
 
 
 # =====================
-# 9. Discord 投稿
+# 8. Discord投稿
 # =====================
 content = {
     "embeds": [{
@@ -186,7 +148,7 @@ requests.post(WEBHOOK_URL, json=content)
 
 
 # =====================
-# 10. state 保存
+# 9. state 保存
 # =====================
 state["last_match_id"] = latest_match
 if current_lp is not None:
