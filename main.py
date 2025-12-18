@@ -58,7 +58,13 @@ result = "WIN 🟢" if player["win"] else "LOSE 🔴"
 summoner = get_json(
     f"https://jp1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{puuid}"
 )
+
+if "id" not in summoner:
+    print("Summoner API error:", summoner)
+    exit()
+
 summoner_id = summoner["id"]
+
 
 # LP反映遅延対策（少し待つ）
 time.sleep(90)
