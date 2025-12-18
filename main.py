@@ -3,12 +3,20 @@ import os
 import json
 import time
 
+# =====================
+# 環境変数
+# =====================
 RIOT_API_KEY = os.environ["RIOT_API_KEY"]
 WEBHOOK_URL = os.environ["DISCORD_WEBHOOK"]
 
+# =====================
+# 対象プレイヤー（Riot ID）
+# =====================
 GAME_NAME = "パクノダ"
 TAG_LINE = "旅団Win"
-REGION = "asia"   # JP / KR / TW 全部 asia
+
+# Account / Match API 用（JP・KR・TWすべて asia）
+REGION = "asia"
 
 HEADERS = {"X-Riot-Token": RIOT_API_KEY}
 STATE_FILE = "state.json"
@@ -41,7 +49,7 @@ puuid = acc["puuid"]
 
 
 # =====================
-# 2. 最新試合ID
+# 2. 最新試合ID取得
 # =====================
 match_ids = get_json(
     f"https://{REGION}.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?count=1"
@@ -49,12 +57,13 @@ match_ids = get_json(
 
 latest_match = match_ids[0]
 
+# 既に投稿済みなら終了
 if state.get("last_match_id") == latest_match:
     exit()
 
 
 # =====================
-# 3. 試合詳細
+# 3. 試合詳細取得
 # =====================
 match = get_json(
     f"https://{REGION}.api.riotgames.com/lol/match/v5/matches/{latest_match}"
@@ -67,13 +76,16 @@ result = "WIN 🟢" if player["win"] else "LOSE 🔴"
 
 
 # =====================
-# 4. summonerId（Match API から直接）
+# 4. summonerId / PLATFORM（ここが重要）
 # =====================
 summoner_id = player["summonerId"]
 
+# KR / JP1 / NA1 など → API用に小文字化
+platform = info["platformId"].lower()
+
 
 # =====================
-# 5. LP反映待ち
+# 5. LP反映待ち（仕様対策）
 # =====================
 time.sleep(90)
 
@@ -82,7 +94,7 @@ time.sleep(90)
 # 6. ランク情報取得
 # =====================
 entries = get_json(
-    f"https://jp1.api.riotgames.com/lol/league/v4/entries/by-summoner/{summoner_id}"
+    f"https://{platform}.api.riotgames.com/lol/league/v4/entries/by-summoner/{summoner_id}"
 )
 
 rank_entry = next(
@@ -100,7 +112,7 @@ else:
 
 
 # =====================
-# 7. LP差分
+# 7. LP差分計算
 # =====================
 prev_lp = state.get("last_lp")
 lp_diff = None
@@ -108,14 +120,14 @@ lp_diff = None
 if current_lp is not None and prev_lp is not None:
     lp_diff = current_lp - prev_lp
 
-lp_text = (
-    f'{("+" if lp_diff >= 0 else "")}{lp_diff} LP'
-    if lp_diff is not None else "不明"
-)
+if lp_diff is None:
+    lp_text = "不明"
+else:
+    lp_text = f'{("+" if lp_diff >= 0 else "")}{lp_diff} LP'
 
 
 # =====================
-# 8. Discord投稿
+# 8. Discord 投稿
 # =====================
 content = {
     "embeds": [{
