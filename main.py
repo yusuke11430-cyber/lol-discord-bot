@@ -6,8 +6,8 @@ import time
 RIOT_API_KEY = os.environ["RIOT_API_KEY"]
 WEBHOOK_URL = os.environ["DISCORD_WEBHOOK"]
 
-GAME_NAME = "Yagi"
-TAG_LINE = "JP1"
+GAME_NAME = "パクノダ"
+TAG_LINE = "旅団Win"
 REGION = "asia"   # JPは asia
 
 HEADERS = {"X-Riot-Token": RIOT_API_KEY}
